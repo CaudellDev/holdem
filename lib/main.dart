@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:developer';
 
 void main() => runApp(MyApp());
 
@@ -42,6 +43,107 @@ class TablesList extends StatelessWidget {
               }).toList(),
             );
         }
+      },
+    );
+  }
+}
+
+class GameTableGrid extends StatelessWidget {
+
+  Widget baseTable({Widget child}) {
+    return Card(
+      elevation: 8.0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 8),
+        child: Container(
+          child: Center(
+            child: child,
+          )
+        ),
+      ),
+    );
+  }
+
+  Widget gameTableSave(DocumentSnapshot document) {
+    return baseTable(
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        children: <Widget>[
+          Text(document['desc']),
+          Text(document['curr_turn'].toString()),
+        ],
+      ),
+    );
+  }
+
+  Widget gameTableEmpty() {
+    return baseTable(child: Text('Empty Table'));
+  }
+
+  Widget gameTableLoading() {
+    return baseTable(child: Text('Loading...'));
+  }
+
+  Widget gameTableError(String err) {
+    return baseTable(child: Text('Error: ' + err));
+  }
+
+  Widget handleTable(AsyncSnapshot<QuerySnapshot> snapshot, int index) {
+    if (snapshot.hasError)
+      return gameTableError(snapshot.error.toString());
+
+    switch (snapshot.connectionState) {
+      case ConnectionState.waiting:
+        return gameTableLoading();
+      case ConnectionState.none:
+        return gameTableEmpty();
+      case ConnectionState.active:
+      case ConnectionState.done:
+        List<DocumentSnapshot> docs = snapshot.data.documents;
+        if (docs != null && docs.isNotEmpty && index < docs.length) {
+          return gameTableSave(docs[index]);
+        }
+
+        return gameTableEmpty();
+      default:
+        return gameTableEmpty();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: Firestore.instance.collection('tables').snapshots(),
+      builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+        return Column(
+          mainAxisSize: MainAxisSize.max,
+          children: <Widget>[
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                handleTable(snapshot, 0),
+                handleTable(snapshot, 1),
+              ],
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                handleTable(snapshot, 2),
+                handleTable(snapshot, 3),
+              ],
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                handleTable(snapshot, 4),
+                handleTable(snapshot, 5),
+              ],
+            ),
+          ],
+        );
       },
     );
   }
@@ -144,36 +246,44 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             Visibility(
               visible: !showSignIn,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 48.0, vertical: 16.0),
+                child: Container(
+                  color: Colors.white,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: <Widget>[
+                      Text("Nickname:", style: TextStyle(fontSize: 24),),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: TextField(
+                          style: TextStyle(fontSize: 24,),
+                          controller: nameText,
+                          decoration: null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Visibility(
+              visible: !showSignIn,
               child: Column(
                 mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.start,
+//                mainAxisAlignment: MainAxisAlignment.start,
                 children: <Widget>[
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 64.0, vertical: 16.0),
                     child: Container(
-                      color: Colors.white,
                       child: Column(
+                        mainAxisSize: MainAxisSize.max,
                         children: <Widget>[
-                          Text("Nickname:", style: TextStyle(fontSize: 24),),
-                          TextField(
-                            style: TextStyle(fontSize: 24,),
-                            controller: nameText,
-                            decoration: null,
-                          ),
+                          Text("Games started:"),
+                          GameTableGrid(),
+//                            TablesList(),
                         ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Card(
-                      child: Container(
-                        child: Column(
-                          children: <Widget>[
-                            Text("Games started:"),
-                            TablesList(),
-                          ],
-                        ),
                       ),
                     ),
                   ),
